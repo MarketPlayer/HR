@@ -96,6 +96,7 @@
     <Compile Include="AsyncLock.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Dashboardstatprocessor.cs" />
+    <Compile Include="Exceptions\ExceptionHandler.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>

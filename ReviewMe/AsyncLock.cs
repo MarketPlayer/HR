@@ -7,7 +7,6 @@ using System.Web;
 
 namespace ReviewMe
 {
-
     // Пример кастомного примитива синхронизации взят здесь:
     // https://blogs.msdn.microsoft.com/pfxteam/2012/02/12/building-async-coordination-primitives-part-6-asynclock/
 

@@ -1,66 +1,57 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace ReviewMe.Controllers
 {
-    //[CR] TODO: Комментарии к public классам и членам класса.
+    /// <summary>
+    /// Предоставляет WEB API для работы со статистикой магазина.
+    /// </summary>    
     public class HomeController : ApiController
-    {
-        //[CR] TODO: Реализовать кастомный примитив синхронизации потоков AsyncLock.
-
-        //[CR] TODO: Проанализировать возможность (необходимость?) синхроизации потоков в контроллере. 
-        // Синхронизация возможна (при использовании static примитива), но в данном случае избыточна,
-        // т.к. каждое из действий вызывает static методы класса DashboardStatProcessor. По умолчанию
-        // считаем static методы потокобезопасными.
-
-        private static IAsyncLock _lock = new AsyncLock();
-
-        //[CR] TODO: Привести в соответствие названия маршрутов 
-        // для доступа к действиям AddHumanVisitors, DeleteVisitorsCount.
-
-        //[CR] TODO: Реализовать обработку исключительных ситуаций.
-
+    {      
+        /// <summary>
+        /// Тестовый метод.
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public IHttpActionResult Index()
         {
             return Ok("Api started");
-        }        
-
-        [HttpGet]
-        [Route("add")]
-        public async Task<IHttpActionResult> AddHumanVisitors(string storeName, int count)
-        {          
-            {
-                if (DashboardStatProcessor.AddHumanVisitors(storeName, count).Result)
-                {
-                    return Ok();
-                }
-            }
-            return InternalServerError();
         }
 
-        //[CR] TODO: GetVisitorsCount потенциально инициирует обращение к БД. Реализовать ассинхронность.
+        /// <summary>
+        /// Добавить посетителей.
+        /// </summary>
+        /// <param name="storeName">Название магазина.</param>
+        /// <param name="count">Количество посетителей.</param>
+        /// <returns>Tекущее количество посетителей магазина</returns>
+        [HttpGet]
+        [Route("visitors/add")]
+        public async Task<int> AddHumanVisitors(string storeName, int count)
+        {
+            return await DashboardStatProcessor.AddHumanVisitorsAsync(storeName, count);            
+        }
 
+        /// <summary>
+        /// Получить текущее количество посетителей магазина.
+        /// </summary>
+        /// <param name="storeName">Название магазина.</param>
+        /// <returns>Tекущее количество посетителей магазина</returns>
         [HttpGet]
         [Route("visitors/count")]
-        public int GetVisitorsCount(string storeName)
+        public async Task<int> GetVisitorsCount(string storeName)
         {
-            return DashboardStatProcessor.GetVisitorsCount(storeName);            
+            return await DashboardStatProcessor.GetVisitorsCountAsync(storeName);            
         }
 
+        /// <summary>
+        /// Обнулить статистику посетителей магазина.
+        /// </summary>
+        /// <param name="storeName">Название магазина.</param>
         [HttpDelete]
-        [Route("visitors/count")]
+        [Route("visitors/reset")]
         public async void DeleteVisitorsCount(string storeName)
-        {
-            using (await _lock.LockAsync())
-            {
-                DashboardStatProcessor.GetVisitorsCount(storeName);
-            }
+        {           
+            await DashboardStatProcessor.GetVisitorsCountAsync(storeName);            
         }
     }
 }
