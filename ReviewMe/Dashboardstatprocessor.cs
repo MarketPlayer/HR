@@ -92,6 +92,8 @@ namespace ReviewMe
                     db.SaveChanges();
 
                     _statisticData[storeName] = 0;
+
+                    return;
                 }
             }
         }

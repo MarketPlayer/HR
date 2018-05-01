@@ -25,7 +25,7 @@ namespace ReviewMe.Controllers
         /// <param name="count">Количество посетителей.</param>
         /// <returns>Tекущее количество посетителей магазина</returns>
         [HttpGet]
-        [Route("visitors/add")]
+        [Route("visitors/add/{storeName}/{count}")]
         public async Task<int> AddHumanVisitors(string storeName, int count)
         {
             return await DashboardStatProcessor.AddHumanVisitorsAsync(storeName, count);            
@@ -37,7 +37,7 @@ namespace ReviewMe.Controllers
         /// <param name="storeName">Название магазина.</param>
         /// <returns>Tекущее количество посетителей магазина</returns>
         [HttpGet]
-        [Route("visitors/count")]
+        [Route("visitors/count/{storeName}")]
         public async Task<int> GetVisitorsCount(string storeName)
         {
             return await DashboardStatProcessor.GetVisitorsCountAsync(storeName);            
@@ -48,10 +48,10 @@ namespace ReviewMe.Controllers
         /// </summary>
         /// <param name="storeName">Название магазина.</param>
         [HttpDelete]
-        [Route("visitors/reset")]
-        public async void DeleteVisitorsCount(string storeName)
+        [Route("visitors/reset/{storeName}")]
+        public async Task DeleteVisitorsCount(string storeName)
         {           
-            await DashboardStatProcessor.GetVisitorsCountAsync(storeName);            
+            await DashboardStatProcessor.DeleteVisitorsCountAsync(storeName);            
         }
     }
 }
