@@ -28,6 +28,9 @@ namespace ReviewMe.Controllers
         [Route("visitors/add/{storeName}/{count}")]
         public async Task<int> AddHumanVisitors(string storeName, int count)
         {
+            // [CR] TODO: Здесь нарушение договорености. GET-запрос не должен менять
+            // состояния, изменить на POST.
+
             return await DashboardStatProcessor.AddHumanVisitorsAsync(storeName, count);            
         }
 

@@ -12,6 +12,10 @@ namespace ReviewMe
     /// </summary>
     internal class DashboardStatProcessor 
     {
+        // [CR] TODO: Сейчас логика доступа к данным смешана с бизнес-логикой. 
+        // По понятным причинам это плохо, кроме того ухудшается тестируемость модуля.
+        // Реализовать уровень доступа к данным (репозиторий), зависимость внедрять через конструктор. 
+
         private static IAsyncLock _lock = new AsyncLock();
 
         private static Dictionary<string, int> _statisticData = new Dictionary<string, int>();
