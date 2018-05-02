@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace ReviewMe.Controllers
@@ -7,7 +8,19 @@ namespace ReviewMe.Controllers
     /// Предоставляет WEB API для работы со статистикой магазина.
     /// </summary>    
     public class HomeController : ApiController
-    {      
+    {
+        private static IAsyncLock _lock = new AsyncLock();
+
+        private IDashboardStatProcessor _dashboardStatProcessor;
+
+        public HomeController(IDashboardStatProcessor dashboardStatProcessor)
+        {            
+            if (dashboardStatProcessor == null)
+                throw new ArgumentNullException("dashboardStatProcessor");
+
+            _dashboardStatProcessor = dashboardStatProcessor;
+        }
+
         /// <summary>
         /// Тестовый метод.
         /// </summary>
@@ -24,14 +37,14 @@ namespace ReviewMe.Controllers
         /// <param name="storeName">Название магазина.</param>
         /// <param name="count">Количество посетителей.</param>
         /// <returns>Tекущее количество посетителей магазина</returns>
-        [HttpGet]
+        [HttpPost]
         [Route("visitors/add/{storeName}/{count}")]
         public async Task<int> AddHumanVisitors(string storeName, int count)
-        {
-            // [CR] TODO: Здесь нарушение договорености. GET-запрос не должен менять
-            // состояния, изменить на POST.
-
-            return await DashboardStatProcessor.AddHumanVisitorsAsync(storeName, count);            
+        {            
+            using (await _lock.LockAsync())
+            {
+                return await _dashboardStatProcessor.AddHumanVisitorsAsync(storeName, count);
+            }           
         }
 
         /// <summary>
@@ -43,7 +56,10 @@ namespace ReviewMe.Controllers
         [Route("visitors/count/{storeName}")]
         public async Task<int> GetVisitorsCount(string storeName)
         {
-            return await DashboardStatProcessor.GetVisitorsCountAsync(storeName);            
+            using (await _lock.LockAsync())
+            {
+                return await _dashboardStatProcessor.GetVisitorsCountAsync(storeName);
+            }        
         }
 
         /// <summary>
@@ -53,8 +69,11 @@ namespace ReviewMe.Controllers
         [HttpDelete]
         [Route("visitors/reset/{storeName}")]
         public async Task DeleteVisitorsCount(string storeName)
-        {           
-            await DashboardStatProcessor.DeleteVisitorsCountAsync(storeName);            
+        {
+            using (await _lock.LockAsync())
+            {
+                await _dashboardStatProcessor.DeleteVisitorsCountAsync(storeName);
+            }      
         }
     }
 }

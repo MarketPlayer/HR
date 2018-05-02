@@ -3,51 +3,58 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Threading.Tasks;
+using ReviewMe.DAL;
 using ReviewMe.Models;
 
 namespace ReviewMe
 {
+    public interface IDashboardStatProcessor
+    {
+        Task<int> AddHumanVisitorsAsync(string storeName, int humanCount);
+
+        Task<int> GetVisitorsCountAsync(string storeName);
+
+        Task DeleteVisitorsCountAsync(string storeName);
+    }
+
     /// <summary>
     /// Предоставляет API для работы со статистикой магазина. 
     /// </summary>
-    internal class DashboardStatProcessor 
+    public class DashboardStatProcessor : IDashboardStatProcessor
     {
-        // [CR] TODO: Сейчас логика доступа к данным смешана с бизнес-логикой. 
-        // По понятным причинам это плохо, кроме того ухудшается тестируемость модуля.
-        // Реализовать уровень доступа к данным (репозиторий), зависимость внедрять через конструктор. 
-
-        private static IAsyncLock _lock = new AsyncLock();
+        private static object _lockObj = new object();
 
         private static Dictionary<string, int> _statisticData = new Dictionary<string, int>();
-               
-        internal static async Task<int> AddHumanVisitorsAsync(string storeName, int humanCount)
+
+        private IStoreRepository _storeRepository;
+
+        public DashboardStatProcessor(IStoreRepository storeRepository)
+        {
+            if (storeRepository == null)
+                throw new ArgumentNullException("storeRepository");
+
+            _storeRepository = storeRepository;
+        }
+
+        public async Task<int> AddHumanVisitorsAsync(string storeName, int humanCount)
         {
             if (string.IsNullOrEmpty(storeName))
                 throw new ArgumentNullException("storeName");
             if (humanCount < 0)
                 throw new ArgumentOutOfRangeException("humanCount");
+                                    
+            Store store = await _storeRepository.GetStoreAsync(storeName);
+            
+            store.HumanCount += humanCount;
 
-            using (await _lock.LockAsync())
-            {
-                using (var db = new ApplicationDbContext())
-                {
-                    var store = await db.Stores.SingleAsync(x => x.Name == storeName);
+            _storeRepository.UpdateStore(store);
 
-                    store.HumanCount += humanCount;
+            this.CacheStatisticData(storeName, store.HumanCount);
 
-                    db.SaveChanges();
-
-                    if (!_statisticData.ContainsKey(storeName))
-                        _statisticData.Add(storeName, 0);
-
-                    _statisticData[storeName] = store.HumanCount;
-
-                    return store.HumanCount;                  
-                }                
-            }
+            return store.HumanCount;                  
         }
-                
-        internal static async Task<int> GetVisitorsCountAsync(string storeName)
+
+        public async Task<int> GetVisitorsCountAsync(string storeName)
         {
             if (string.IsNullOrEmpty(storeName))
                 throw new ArgumentNullException("storeName");
@@ -55,20 +62,14 @@ namespace ReviewMe
             if (_statisticData.ContainsKey(storeName))
                 return _statisticData[storeName];
 
-            using (await _lock.LockAsync())
-            {
-                using (var db = new ApplicationDbContext())
-                {
-                    var store = await db.Stores.SingleAsync(x => x.Name == storeName);
+            Store store = await _storeRepository.GetStoreAsync(storeName);
 
-                    _statisticData.Add(storeName, store.HumanCount);
+            this.CacheStatisticData(storeName, store.HumanCount);
 
-                    return store.HumanCount;
-                }
-            }
+            return store.HumanCount;            
         }
 
-        internal static async Task DeleteVisitorsCountAsync(string storeName)
+        public async Task DeleteVisitorsCountAsync(string storeName)
         {
             if (string.IsNullOrEmpty(storeName))
                 throw new ArgumentNullException("storeName");
@@ -85,19 +86,28 @@ namespace ReviewMe
             if (statisticCached && humanCount == 0)
                 return;
 
-            using (await _lock.LockAsync())
+            Store store = await _storeRepository.GetStoreAsync(storeName);
+
+            store.HumanCount = 0;
+
+            _storeRepository.UpdateStore(store);
+
+            this.CacheStatisticData(storeName, store.HumanCount);
+
+            return;                        
+        }
+
+        private void CacheStatisticData(string storeName, int humanCount)
+        {
+            lock (_lockObj)
             {
-                using (var db = new ApplicationDbContext())
+                if (!_statisticData.ContainsKey(storeName))
                 {
-                    var store = await db.Stores.SingleAsync(x => x.Name == storeName);
-
-                    store.HumanCount = 0;
-
-                    db.SaveChanges();
-
-                    _statisticData[storeName] = 0;
-
-                    return;
+                    _statisticData.Add(storeName, humanCount);
+                }
+                else
+                {
+                    _statisticData[storeName] = humanCount;
                 }
             }
         }

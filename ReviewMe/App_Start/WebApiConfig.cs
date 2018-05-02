@@ -19,6 +19,8 @@ namespace ReviewMe
             );
 
             config.Filters.Add(new ExceptionHandler());
+
+            config.DependencyResolver = new Infrastructure.NinjectDependencyResolver();
         }
     }
 }

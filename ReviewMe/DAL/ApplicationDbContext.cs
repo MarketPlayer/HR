@@ -5,7 +5,7 @@ using System.Data.Entity;
 using System.Linq;
 using System.Web;
 
-namespace ReviewMe
+namespace ReviewMe.DAL
 {
     public class ApplicationDbContext: DbContext
     {
