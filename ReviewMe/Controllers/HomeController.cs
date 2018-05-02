@@ -1,51 +1,79 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace ReviewMe.Controllers
 {
+    /// <summary>
+    /// Предоставляет WEB API для работы со статистикой магазина.
+    /// </summary>    
     public class HomeController : ApiController
     {
         private static IAsyncLock _lock = new AsyncLock();
 
+        private IDashboardStatProcessor _dashboardStatProcessor;
+
+        public HomeController(IDashboardStatProcessor dashboardStatProcessor)
+        {            
+            if (dashboardStatProcessor == null)
+                throw new ArgumentNullException("dashboardStatProcessor");
+
+            _dashboardStatProcessor = dashboardStatProcessor;
+        }
+
+        /// <summary>
+        /// Тестовый метод.
+        /// </summary>
+        /// <returns></returns>
         [HttpGet]
         public IHttpActionResult Index()
         {
             return Ok("Api started");
-        }        
+        }
 
-        [HttpGet]
-        [Route("add")]
-        public async Task<IHttpActionResult> AddHumanVisitors(string storeName, int count)
-        {          
+        /// <summary>
+        /// Добавить посетителей.
+        /// </summary>
+        /// <param name="storeName">Название магазина.</param>
+        /// <param name="count">Количество посетителей.</param>
+        /// <returns>Tекущее количество посетителей магазина</returns>
+        [HttpPost]
+        [Route("visitors/add/{storeName}/{count}")]
+        public async Task<int> AddHumanVisitors(string storeName, int count)
+        {            
+            using (await _lock.LockAsync())
             {
-                if (DashboardStatProcessor.AddHumanVisitors(storeName, count).Result)
-                {
-                    return Ok();
-                }
-            }
-            return InternalServerError();
+                return await _dashboardStatProcessor.AddHumanVisitorsAsync(storeName, count);
+            }           
         }
 
+        /// <summary>
+        /// Получить текущее количество посетителей магазина.
+        /// </summary>
+        /// <param name="storeName">Название магазина.</param>
+        /// <returns>Tекущее количество посетителей магазина</returns>
         [HttpGet]
-        [Route("visitors/count")]
-        public int GetVisitorsCount(string storeName)
-        {
-            return DashboardStatProcessor.GetVisitorsCount(storeName);            
-        }
-
-        [HttpDelete]
-        [Route("visitors/count")]
-        public async void DeleteVisitorsCount(string storeName)
+        [Route("visitors/count/{storeName}")]
+        public async Task<int> GetVisitorsCount(string storeName)
         {
             using (await _lock.LockAsync())
             {
-                DashboardStatProcessor.GetVisitorsCount(storeName);
-            }
+                return await _dashboardStatProcessor.GetVisitorsCountAsync(storeName);
+            }        
+        }
+
+        /// <summary>
+        /// Обнулить статистику посетителей магазина.
+        /// </summary>
+        /// <param name="storeName">Название магазина.</param>
+        [HttpDelete]
+        [Route("visitors/reset/{storeName}")]
+        public async Task DeleteVisitorsCount(string storeName)
+        {
+            using (await _lock.LockAsync())
+            {
+                await _dashboardStatProcessor.DeleteVisitorsCountAsync(storeName);
+            }      
         }
     }
 }

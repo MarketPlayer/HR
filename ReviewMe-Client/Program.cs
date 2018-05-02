@@ -8,14 +8,14 @@ namespace ReviewMe_Client
 {
     public interface IStoreApi
     {
-        [Get("/visitors/count")]
-        Task<int> FetchCountAsync(string player);
+        [Get("/visitors/count/{storeName}")]
+        Task<int> FetchCountAsync([Path] string storeName);
 
-        [Get("/add")]
-        Task AddHumanVisitorsAsync(string player, int count);
+        [Get("/visitors/add/{storeName}/{count}")]
+        Task<int> AddHumanVisitorsAsync([Path] string storeName, [Path] int count);
 
-        [Delete("/visitors/count")]
-        Task ResetVisitorsCountAsync(string player);
+        [Delete("/visitors/reset/{storeName}")]
+        Task ResetVisitorsCountAsync([Path] string storeName);
     }
 
     class Program

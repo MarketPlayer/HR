@@ -3,40 +3,112 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Web;
+using ReviewMe.DAL;
+using ReviewMe.Models;
 
 namespace ReviewMe
 {
-    public class DashboardStatProcessor 
+    public interface IDashboardStatProcessor
     {
-        public static Dictionary<string, int> _statisticData;
+        Task<int> AddHumanVisitorsAsync(string storeName, int humanCount);
 
-        public static async Task<bool> AddHumanVisitors(string playerName, int value)
+        Task<int> GetVisitorsCountAsync(string storeName);
+
+        Task DeleteVisitorsCountAsync(string storeName);
+    }
+
+    /// <summary>
+    /// Предоставляет API для работы со статистикой магазина. 
+    /// </summary>
+    public class DashboardStatProcessor : IDashboardStatProcessor
+    {
+        private static object _lockObj = new object();
+
+        private static Dictionary<string, int> _statisticData = new Dictionary<string, int>();
+
+        private IStoreRepository _storeRepository;
+
+        public DashboardStatProcessor(IStoreRepository storeRepository)
         {
-            using (var db = new ApplicationDbContext())            {
-                var player = await db.Stores.SingleAsync(x => x.Name == playerName);
-                player.HumanCount += value;                
-                db.SaveChanges();
-            }                           
-            return true;
+            if (storeRepository == null)
+                throw new ArgumentNullException("storeRepository");
+
+            _storeRepository = storeRepository;
         }
 
-        public static int GetVisitorsCount(string playerName)
+        public async Task<int> AddHumanVisitorsAsync(string storeName, int humanCount)
         {
-            using (var db = new ApplicationDbContext())
+            if (string.IsNullOrEmpty(storeName))
+                throw new ArgumentNullException("storeName");
+            if (humanCount < 0)
+                throw new ArgumentOutOfRangeException("humanCount");
+                                    
+            Store store = await _storeRepository.GetStoreAsync(storeName);
+            
+            store.HumanCount += humanCount;
+
+            _storeRepository.UpdateStore(store);
+
+            this.CacheStatisticData(storeName, store.HumanCount);
+
+            return store.HumanCount;                  
+        }
+
+        public async Task<int> GetVisitorsCountAsync(string storeName)
+        {
+            if (string.IsNullOrEmpty(storeName))
+                throw new ArgumentNullException("storeName");
+                        
+            if (_statisticData.ContainsKey(storeName))
+                return _statisticData[storeName];
+
+            Store store = await _storeRepository.GetStoreAsync(storeName);
+
+            this.CacheStatisticData(storeName, store.HumanCount);
+
+            return store.HumanCount;            
+        }
+
+        public async Task DeleteVisitorsCountAsync(string storeName)
+        {
+            if (string.IsNullOrEmpty(storeName))
+                throw new ArgumentNullException("storeName");
+
+            bool statisticCached = false;
+            int humanCount = 0;
+
+            if (_statisticData.ContainsKey(storeName))
             {
-                var player = db.Stores.FirstOrDefault(x => x.Name == playerName);
-                return player.HumanCount;
+                statisticCached = true;
+                humanCount = _statisticData[storeName];
             }
+
+            if (statisticCached && humanCount == 0)
+                return;
+
+            Store store = await _storeRepository.GetStoreAsync(storeName);
+
+            store.HumanCount = 0;
+
+            _storeRepository.UpdateStore(store);
+
+            this.CacheStatisticData(storeName, store.HumanCount);
+
+            return;                        
         }
 
-        public static void DeleteVisitorsCount(string playerName)
+        private void CacheStatisticData(string storeName, int humanCount)
         {
-            using (var db = new ApplicationDbContext())
+            lock (_lockObj)
             {
-                var player = db.Stores.FirstOrDefault(x => x.Name == playerName);
-                player.HumanCount = 0;
-                db.SaveChanges();
+                if (!_statisticData.ContainsKey(storeName))
+                {
+                    _statisticData.Add(storeName, humanCount);
+                }
+                else
+                {
+                    _statisticData[storeName] = humanCount;
+                }
             }
         }
     }
